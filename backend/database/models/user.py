@@ -96,3 +96,24 @@ class User(db.Model, UserMixin, CrudMixin):
 
     def get_by_email(email):
         return User.query.filter(User.email == email).first()
+
+    # accept partner invite and join 
+    def accept_partner_invitation(self, partner_id, role=MemberRole.SUBSCRIBER):
+        partner = db.session.query(Partner).get(partner_id)
+        if partner:
+            # check if user is already a member of partner
+            if not any(member.partner_id == partner_id for member in self.partner_association):
+                member = PartnerMember(user=self, partner=partner, role=role)
+                db.session.add(member)
+                db.session.commit()
+                return True
+        return False
+
+    # leave partner (or decline invite)
+    def leave_partner(self, partner_id):
+        partner = db.session.query(Partner).get(partner_id)
+        if partner_member:
+            db.session.delete(partner_member)
+            db.session.commit()
+            return True
+        return False
