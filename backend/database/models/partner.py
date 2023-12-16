@@ -48,6 +48,7 @@ class PartnerMember(db.Model, CrudMixin):
         return super().create(refresh)
 
 
+
 class Partner(db.Model, CrudMixin):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.Text)

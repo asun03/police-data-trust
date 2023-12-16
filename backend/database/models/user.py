@@ -86,10 +86,14 @@ class User(db.Model, UserMixin, CrudMixin):
 
     phone_number = db.Column(db.Text)
 
-    # Data Partner Relationships
+    # get partner relationships 
     partner_association = db.relationship(
         "PartnerMember", back_populates="user", lazy="select")
     member_of = association_proxy("partner_association", "partner")
+
+    # get invitations to partners
+    invitations_received = db.relationship(
+        'Invitation', back_populates='user', lazy='dynamic')
 
     def verify_password(self, pw):
         return bcrypt.checkpw(pw.encode("utf8"), self.password.encode("utf8"))
@@ -111,9 +115,25 @@ class User(db.Model, UserMixin, CrudMixin):
 
     # leave partner (or decline invite)
     def leave_partner(self, partner_id):
-        partner = db.session.query(Partner).get(partner_id)
-        if partner_member:
-            db.session.delete(partner_member)
+        is_partner_member = db.session.query(Partner).get(partner_id)
+        if is_partner_member:
+            db.session.delete(is_partner_member)
             db.session.commit()
             return True
         return False
+
+# invitation class (TODO: move later) note: modeled after partner.py args
+# takes in: user, partner, memberrole (default subscriber)
+class Invitation(db.Model, CrudMixin):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    partner_id = db.Column(db.Integer, db.ForeignKey('partner.id'),primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'),primary_key=True)
+    role = db.Column(db.Enum(MemberRole), nullable=False)
+    is_accepted = db.Column(db.Boolean, default=False) # default to not accepted invite 
+    date_joined = db.Column(db.DateTime)
+
+# send invitation to user - TODO: move 
+def send_invitation(user, partner, role):
+    invitation = Invitation(user=user, partner=partner, role=role)
+    db.session.add(invitation)
+    db.session.commit()
