@@ -104,18 +104,23 @@ class User(db.Model, UserMixin, CrudMixin):
     # accept partner invite and join 
     def accept_partner_invitation(self, partner_id, role=MemberRole.SUBSCRIBER):
         partner = db.session.query(Partner).get(partner_id)
-        if partner:
-            # check if user is already a member of partner
-            if not any(member.partner_id == partner_id for member in self.partner_association):
-                member = PartnerMember(user=self, partner=partner, role=role)
-                db.session.add(member)
-                db.session.commit()
-                return True
+        invitation = Invitation.query.filter_by(user_id=self.id, partner_id=partner_id, is_accepted=False).first()
+        # check partner exists + invite exists and is not accepted 
+        if invitation and partner:
+            # accept it 
+            invitation.is_accepted = True
+            invitation.date_joined = datetime.now()
+
+            # add partner member to db
+            partner_member = PartnerMember(user=self, partner=invitation.partner, role=invitation.role)
+            db.session.add(partner_member)
+            db.session.commit()
+            return True
         return False
 
     # leave partner (or decline invite)
     def leave_partner(self, partner_id):
-        is_partner_member = db.session.query(Partner).get(partner_id)
+        is_partner_member = db.session.query(PartnerMember).filter_by(user_id=self.id, partner_id=partner_id).first()
         if is_partner_member:
             db.session.delete(is_partner_member)
             db.session.commit()
@@ -132,8 +137,10 @@ class Invitation(db.Model, CrudMixin):
     is_accepted = db.Column(db.Boolean, default=False) # default to not accepted invite 
     date_joined = db.Column(db.DateTime)
 
-# send invitation to user - TODO: move 
-def send_invitation(user, partner, role):
-    invitation = Invitation(user=user, partner=partner, role=role)
-    db.session.add(invitation)
-    db.session.commit()
+    # send invitation to user - TODO: move 
+    def send_invitation(user, partner, role):
+        # only send invite if user is not already a member of partner 
+        if not any(member.partner_id == partner_id for member in db.session.query(PartnerMember).filter_by(user_id=user.id)):
+            invitation = Invitation(user=user, partner=partner, role=role)
+            db.session.add(invitation)
+            db.session.commit()
