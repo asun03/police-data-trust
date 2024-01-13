@@ -58,6 +58,7 @@ class UserRole(str, Enum):
 
 
 # Define the User data-model.
+# TODO: make route file for users
 class User(db.Model, UserMixin, CrudMixin):
     """The SQL dataclass for an Incident."""
 
